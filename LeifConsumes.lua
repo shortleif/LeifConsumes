@@ -70,6 +70,7 @@ Addon.foodAndSpecialConsumables = {
         -- Testing
     ["Dry Pork Ribs"] = 19706,
     ["Jungle Stew"] = 19709,
+    ["Hot Lion Chops"] = 19708,
 }
 
 Addon.editBoxes = {} 
@@ -200,7 +201,7 @@ local function isConsumableActive(itemName, category, horizontalButton, vertical
 
         if spellId then
             totalDuration = nil  -- Reset totalDuration before the loop
-            for i = 1, 3 do
+            for i = 1, 40 do
                 local _, _, _, _, duration, expirationTime, _, _, _, auraSpellId = UnitAura("player", i)
                 
                 if auraSpellId and auraSpellId == spellId then
@@ -248,9 +249,10 @@ local function isConsumableActive(itemName, category, horizontalButton, vertical
                 end
             end
         end
-        -- print("totalDuration outside loops", itemName, totalDuration)
     end
-    -- print(itemName, playerHasBuff, currentButtonAlpha, remainingDuration, totalDuration)
+    -- Debug prints before returning
+    -- print("itemName:", itemName, "totalDuration:", totalDuration, "remainingDuration:", remainingDuration)
+
     return playerHasBuff, currentButtonAlpha, remainingDuration, totalDuration
 end
 
@@ -269,7 +271,6 @@ local function updateButtonVisibility(horizontalButton, verticalButton)
         currentDurationStatus = remainingDuration / totalDuration
     end
 
-    -- print(itemName, currentDurationStatus, totalDuration, remainingDuration)
     if foodAndSpecialConsumables[itemName] == 349981 then  -- Special case: Supercharged Chronoboon Displacer
         horizontalButton:SetAlpha(currentButtonAlpha)
         verticalButton:SetAlpha(currentButtonAlpha)
@@ -280,13 +281,21 @@ local function updateButtonVisibility(horizontalButton, verticalButton)
             horizontalButton:Hide()
             verticalButton:Hide()
         end
-        return remainingDuration -- Exit early for this special case
+        return remainingDuration  -- Exit early for this special case
+    end
+
+    local _, _, _, _, _, _, _, _, _, itemTexture = C_Item.GetItemInfo(itemName)
+    if itemTexture then
+        horizontalButton:SetNormalTexture(itemTexture)
+        verticalButton:SetNormalTexture(itemTexture)
+    else
+        -- print("Icon not found for:", itemName, "It needs to be in your bags. For now...")
     end
 
     if isHideIgnore then
         horizontalButton:Show()
         verticalButton:Show()
-        if  currentDurationStatus ~= nil then
+        if currentDurationStatus ~= nil then
             if lowDurationWarning and currentDurationStatus <= 0.2 then
                 horizontalButton:SetAlpha(0.5)  -- Faded if low duration warning is on
                 verticalButton:SetAlpha(0.5)
@@ -296,15 +305,15 @@ local function updateButtonVisibility(horizontalButton, verticalButton)
             end
         end
     elseif lowDurationWarning and currentDurationStatus ~= nil then
-            if currentDurationStatus <= 0.2 then
-                horizontalButton:Show()
-                verticalButton:Show()
-                horizontalButton:SetAlpha(0.5)  -- Faded
-                verticalButton:SetAlpha(0.5)
-            else
-                horizontalButton:Hide()
-                verticalButton:Hide()
-            end
+        if currentDurationStatus <= 0.2 then
+            horizontalButton:Show()
+            verticalButton:Show()
+            horizontalButton:SetAlpha(0.5)  -- Faded
+            verticalButton:SetAlpha(0.5)
+        else
+            horizontalButton:Hide()
+            verticalButton:Hide()
+        end
     else
         if isActive then
             horizontalButton:Hide()  -- Only show if not active
@@ -322,15 +331,12 @@ local function updateButtonVisibility(horizontalButton, verticalButton)
     if not isActive then
         local isInRaid = IsInRaid()
         if Addon.LeifConsumesDB.isRaidOnly and not isInRaid and not Addon.areLeifEditBoxesVisible then
-            -- print("Top if")
             horizontalButton:Hide()
             verticalButton:Hide()
-        elseif Addon.LeifConsumesDB.isVerticalMode and not Addon.areLeifEditBoxesVisible  then
-            -- print("Elif 1: vertical button show.")
+        elseif Addon.LeifConsumesDB.isVerticalMode and not Addon.areLeifEditBoxesVisible then
             horizontalButton:Hide()
             verticalButton:Show()
         elseif not Addon.areLeifEditBoxesVisible then
-            -- print("Elif 2: horizontal button show.")
             horizontalButton:Show()
             verticalButton:Hide()
         end
@@ -362,9 +368,7 @@ function updateButton(itemName, category, index)
             buttonHorizontal:SetNormalTexture(itemTexture)
             buttonVertical:SetNormalTexture(itemTexture)
         else
-            buttonHorizontal:SetNormalTexture("Interface\\Icons\\INV_Misc_QuestionMark") -- Set question mark texture
-            buttonVertical:SetNormalTexture("Interface\\Icons\\INV_Misc_QuestionMark")   -- Set question mark texture
-            print("Icon not found for:", itemName, "It needs to be in your bags. For now...")
+            print("Icon not found for:", itemName, ". It needs to be in your bags. For now...")
         end
 
         -- Update macro text
@@ -417,27 +421,23 @@ function updateButton(itemName, category, index)
         buttonVertical:SetPoint("TOPLEFT", Addon.buttonGroupVertical, "TOPLEFT", 0, Addon.BUTTON_SIZE - Addon.BUTTON_SIZE * index)
 
         -- Create the font string for remaining time
-        local buttonTextHorizontal = buttonHorizontal:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")  -- Create and assign the font string
+        local buttonTextHorizontal = buttonHorizontal:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")  -- Create and assign the font string
         buttonHorizontal.timeText = buttonTextHorizontal  -- Assign the font string to the button
 
-        local buttonTextVertical = buttonVertical:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")  -- Create and assign the font string
+        local buttonTextVertical = buttonVertical:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")  -- Create and assign the font string
         buttonVertical.timeText = buttonTextVertical  -- Assign the font string to the button
 
         if itemName ~= "Supercharged Chronoboon Displacer" then  -- Skip for Chronoboon
             local _, _, remainingDuration = isConsumableActive(itemName, category)
             local formattedTime = FormatRemainingTime(remainingDuration)
-            buttonText:SetText(formattedTime)
+            buttonTextHorizontal:SetText(formattedTime)
+            buttonTextVertical:SetText(formattedTime)
         end 
-        
-        buttonTextHorizontal:SetText(formattedTime)
-        buttonTextVertical:SetText(formattedTime)
 
         if textPlacement == "Above" then
-            print("Above")
             buttonTextHorizontal:SetPoint("CENTER", buttonHorizontal, "CENTER", 0, Addon.BUTTON_SIZE)
             buttonTextVertical:SetPoint("CENTER", buttonVertical, "CENTER", 0, Addon.BUTTON_SIZE)
         elseif textPlacement == "Below" then
-            print("Below")
             buttonTextHorizontal:SetPoint("CENTER", buttonHorizontal, "CENTER", 0, - Addon.BUTTON_SIZE)
             buttonTextVertical:SetPoint("CENTER", buttonVertical, "CENTER", 0, - Addon.BUTTON_SIZE)
         elseif textPlacement == "Left" then
@@ -495,7 +495,7 @@ function InitializeButtons()
                         end
                         
                         -- Create the font string for the button
-                        local buttonText = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                        local buttonText = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")
                         button.timeText = buttonText
 
                         -- Set the text placement
@@ -818,22 +818,6 @@ SlashCmdList["LEIF"] = function(msg)
             offHandEnchants = 1,
             other = 1
         }
-       --  print("AcceptInput called:")
-        local function printDBContents()
-            for category, items in pairs(Addon.LeifConsumesDB) do
-                if type(items) == "table" then
-                    if #items > 0 then  -- Only print if the table is not empty
-                        for i, itemName in ipairs(items) do
-                            print("  Addon.LeifConsumesDB[" .. category .. "][" .. i .. "]:", itemName)
-                        end
-                    else
-                        print("  Addon.LeifConsumesDB[" .. category .. "] is empty")
-                    end
-                else
-                    print("  Addon.LeifConsumesDB[" .. category .. "]:", items) -- For non-table values
-                end
-            end
-        end
 
         -- Clear existing data in LeifConsumesDB
         for _, category in ipairs({"elixirs", "flask", "food", "mainHandEnchants", "offHandEnchants", "other"}) do
@@ -953,12 +937,18 @@ local function StatusUpdate()
     for _, buttonData in ipairs(Addon.horizontalButtons) do
         local horizontalButton = buttonData.button
         local verticalButton = Addon.verticalButtons[buttonData.index].button
+        local itemName = horizontalButton.itemName
 
         -- Call updateButtonVisibility with the correct button arguments
         local remainingDuration = updateButtonVisibility(horizontalButton, verticalButton)
 
         local formattedTime = FormatRemainingTime(remainingDuration)
-        buttonData.button.timeText:SetText(formattedTime)
+
+        if formattedTime and itemName ~= "Supercharged Chronoboon Displacer" then  -- Skip for Chronoboon
+            buttonData.button.timeText:SetText(formattedTime)
+        else
+            -- print("Chronoboon", formattedTime)
+        end
     end
     CheckRaidStatus()
 end
