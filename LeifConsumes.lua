@@ -36,6 +36,7 @@ Addon.weaponEnchantIdToName  = {
     -- Oils
     [2628] = "Brilliant Wizard Oil",
     [2629] = "Brilliant Mana Oil",
+    [7650] = "Enchanted Repellent",
 
     -- Weapon Stones
     [1643] = "Dense Sharpening Stone",
@@ -66,6 +67,8 @@ Addon.foodAndSpecialConsumables = {
     ["Nightfin Soup"] = 18194, -- Mp5
     ["Runn Tum Tuber Surprise"] = 22730, -- Intellect
     ["Smoked Desert Dumplings"] = 24799, -- Strength
+    ["Darkclaw Bisque"] = 470361,
+    ["Smoked Redgill"] = 470367,
 
         -- Testing
     ["Dry Pork Ribs"] = 19706,
@@ -549,7 +552,7 @@ SlashCmdList["LEIF"] = function(msg)
 
     -- Create the background frame
     local bgFrame = CreateFrame("Frame", nil, UIParent)
-    bgFrame:SetSize(300, 550)
+    bgFrame:SetSize(300, 620)
     bgFrame:SetPoint("CENTER")
 
     bgFrame:SetMovable(true)
@@ -793,6 +796,7 @@ SlashCmdList["LEIF"] = function(msg)
     -- Elixirs
     prevBox = CreateEditBox(bgFrame, prevBox, "Elixirs", "elixirs", 1)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "elixirs", 2)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "elixirs", 3)
   
     -- Flask
     prevBox = CreateEditBox(bgFrame, prevBox, "Flask", "flask", 1)
@@ -808,6 +812,9 @@ SlashCmdList["LEIF"] = function(msg)
     prevBox = CreateEditBox(bgFrame, prevBox, "Other", "other", 1)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 2)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 3)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 4)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 5)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 6)
 
     local function AcceptInput()
         local categoryIndices = {
