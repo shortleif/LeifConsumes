@@ -1,4 +1,4 @@
-## Interface 11504
+## Interface 11505
 ## Title: LeifConsumes
 ## Notes: Clickable consumables icons for easy item usage.
 ## Author: Shortleif
