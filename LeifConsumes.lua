@@ -37,6 +37,7 @@ Addon.weaponEnchantIdToName  = {
     [2628] = "Brilliant Wizard Oil",
     [2629] = "Brilliant Mana Oil",
     [7650] = "Enchanted Repellent",
+    [7602] = "Conductive Shield Coating",
 
     -- Weapon Stones
     [1643] = "Dense Sharpening Stone",
