@@ -207,7 +207,7 @@ local function isConsumableActive(itemName, category, horizontalButton, vertical
             for i = 1, 40 do
                 local _, _, _, _, duration, expirationTime, _, _, _, auraSpellId = UnitAura("player", i)
                 
-                if auraSpellId and auraSpellId == spellId then
+                if auraSpellId and (auraSpellId == spellId or (itemName == "Winterfall Firewater" and auraSpellId == 473469)) then
                     totalDuration = duration
                     remainingDuration = expirationTime - GetTime()
                     -- print("totalDuration in loop", itemName, totalDuration)
