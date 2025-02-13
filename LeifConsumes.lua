@@ -27,6 +27,8 @@ Addon.LeifConsumesDB = LeifConsumesDB
 
 Addon.weaponEnchantIdToName  = {
     -- Low Level Testing
+    [7] = "Deadly Poison",
+    [8] = "Deadly Poison II",
     [13] = "Coarse Sharpening Stone",
     [22] = "Crippling Poison",
     [35] = "Mind-numbing Poison",
@@ -38,10 +40,13 @@ Addon.weaponEnchantIdToName  = {
     [2629] = "Brilliant Mana Oil",
     [7650] = "Enchanted Repellent",
     [7602] = "Conductive Shield Coating",
+    [2685] = "Blessed Wizard Oil",
 
     -- Weapon Stones
     [1643] = "Dense Sharpening Stone",
     [2506] = "Elemental Sharpening Stone",
+    [7896] = "Weighted Consecrated Sharpening Stone",
+    [2684] = "Consecrated Sharpening Stone",
 
     -- Poisons
     [603] = "Crippling Poison II",
@@ -346,189 +351,6 @@ local function updateButtonVisibility(horizontalButton, verticalButton)
     end
     return remainingDuration
 end
-
---[[function updateButton(itemName, category, index)
-    local vertical = Addon.LeifConsumesDB.isVerticalMode
-    local raidOnly = Addon.LeifConsumesDB.isRaidOnly
-    local buttonHorizontal, buttonVertical
-    local textPlacement = Addon.LeifConsumesDB.textPlacement
-    
-
-    if Addon.horizontalButtons[index] and Addon.verticalButtons[index] then
-        -- Buttons already exist, update their properties
-        local buttonHorizontal = Addon.horizontalButtons[index].button
-        local buttonVertical = Addon.verticalButtons[index].button
-
-        -- Update itemName and category
-        buttonHorizontal.itemName = itemName
-        buttonHorizontal.category = category
-        buttonVertical.itemName = itemName
-        buttonVertical.category = category
-
-        -- Update textures
-        local _, _, _, _, _, _, _, _, _, itemTexture = C_Item.GetItemInfo(itemName)
-        if itemTexture then
-            buttonHorizontal:SetNormalTexture(itemTexture)
-            buttonVertical:SetNormalTexture(itemTexture)
-        else
-            print("Icon not found for:", itemName, ". It needs to be in your bags. For now...")
-        end
-
-        -- Update macro text
-        local macroText = "/use " .. itemName
-        if category == "mainHandEnchants" then
-            macroText = macroText .. "\n/use 16"
-        elseif category == "offHandEnchants" then
-            macroText = macroText .. "\n/use 17"
-        end
-        buttonHorizontal:SetAttribute("type", "macro")
-        buttonHorizontal:SetAttribute("macrotext", macroText)
-        buttonVertical:SetAttribute("type", "macro")
-        buttonVertical:SetAttribute("macrotext", macroText)
-    else
-        -- Create new buttons
-        local buttonHorizontal = CreateFrame("Button", nil, Addon.buttonGroupHorizontal, "SecureActionButtonTemplate")
-        buttonHorizontal:SetSize(Addon.BUTTON_SIZE, Addon.BUTTON_SIZE)
-
-        local buttonVertical = CreateFrame("Button", nil, Addon.buttonGroupVertical, "SecureActionButtonTemplate")
-        buttonVertical:SetSize(Addon.BUTTON_SIZE, Addon.BUTTON_SIZE)
-
-        -- Set up buttonHorizontal properties  (These lines were missing)
-        buttonHorizontal.itemName = itemName
-        buttonHorizontal.category = category
-        buttonHorizontal.index = index
-
-        buttonVertical.itemName = itemName
-        buttonVertical.category = category
-        buttonVertical.index = index
-
-        local _, _, _, _, _, _, _, _, _, itemTexture = C_Item.GetItemInfo(itemName)
-        if itemTexture then
-            buttonHorizontal:SetNormalTexture(itemTexture)
-            buttonVertical:SetNormalTexture(itemTexture)
-        end
-
-        local macroText = "/use " .. itemName
-        if category == "mainHandEnchants" then
-            macroText = macroText .. "\n/use 16"
-        elseif category == "offHandEnchants" then
-            macroText = macroText .. "\n/use 17"
-        end
-
-        buttonHorizontal:SetAttribute("type", "macro")
-        buttonHorizontal:SetAttribute("macrotext", macroText)
-        buttonVertical:SetAttribute("type", "macro")
-        buttonVertical:SetAttribute("macrotext", macroText)
-
-        buttonHorizontal:SetPoint("TOPLEFT", Addon.buttonGroupHorizontal, "TOPLEFT", Addon.BUTTON_SIZE * index, 0)
-        buttonVertical:SetPoint("TOPLEFT", Addon.buttonGroupVertical, "TOPLEFT", 0, Addon.BUTTON_SIZE - Addon.BUTTON_SIZE * index)
-
-        -- Create the font string for remaining time
-        local buttonTextHorizontal = buttonHorizontal:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")  -- Create and assign the font string
-        buttonHorizontal.timeText = buttonTextHorizontal  -- Assign the font string to the button
-
-        local buttonTextVertical = buttonVertical:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")  -- Create and assign the font string
-        buttonVertical.timeText = buttonTextVertical  -- Assign the font string to the button
-
-        if itemName ~= "Supercharged Chronoboon Displacer" then  -- Skip for Chronoboon
-            local _, _, remainingDuration = isConsumableActive(itemName, category)
-            local formattedTime = FormatRemainingTime(remainingDuration)
-            buttonTextHorizontal:SetText(formattedTime)
-            buttonTextVertical:SetText(formattedTime)
-        end 
-
-        if textPlacement == "Above" then
-            buttonTextHorizontal:SetPoint("CENTER", buttonHorizontal, "CENTER", 0, Addon.BUTTON_SIZE)
-            buttonTextVertical:SetPoint("CENTER", buttonVertical, "CENTER", 0, Addon.BUTTON_SIZE)
-        elseif textPlacement == "Below" then
-            buttonTextHorizontal:SetPoint("CENTER", buttonHorizontal, "CENTER", 0, - Addon.BUTTON_SIZE)
-            buttonTextVertical:SetPoint("CENTER", buttonVertical, "CENTER", 0, - Addon.BUTTON_SIZE)
-        elseif textPlacement == "Left" then
-            buttonTextHorizontal:SetPoint("CENTER", buttonHorizontal, "CENTER", - Addon.BUTTON_SIZE, 0)
-            buttonTextVertical:SetPoint("CENTER", buttonVertical, "CENTER", - Addon.BUTTON_SIZE, 0)
-        elseif textPlacement == "Right" then
-            buttonTextHorizontal:SetPoint("CENTER", buttonHorizontal, "CENTER", Addon.BUTTON_SIZE, 0)
-            buttonTextVertical:SetPoint("CENTER", buttonVertical, "CENTER", Addon.BUTTON_SIZE, 0)
-        end
-        
-        -- Add the new buttons to the tables
-        Addon.horizontalButtons[index] = { button = buttonHorizontal, itemName = itemName, category = category, index = index }
-        Addon.verticalButtons[index] = { button = buttonVertical, itemName = itemName, category = category, index = index }
-    end
-end
-
-
-function InitializeButtons()
-    local index = 1
-    local categoryOrder = { "elixirs", "flask", "food", "mainHandEnchants", "offHandEnchants", "other" }
-    local textPlacement = Addon.LeifConsumesDB.textPlacement
-
-    for _, category in ipairs(categoryOrder) do
-        local items = Addon.LeifConsumesDB[category]
-        if type(items) == "table" then
-            for _, itemName in ipairs(items) do
-                if itemName then
-                    -- Create both buttons at once
-                    local buttonHorizontal = CreateFrame("Button", nil, Addon.buttonGroupHorizontal, "SecureActionButtonTemplate")
-                    local buttonVertical = CreateFrame("Button", nil, Addon.buttonGroupVertical, "SecureActionButtonTemplate")
-
-                    -- Configure both buttons
-                    for _, button in ipairs({buttonHorizontal, buttonVertical}) do
-                        button:SetPoint("TOPLEFT", button == buttonHorizontal and Addon.buttonGroupHorizontal or Addon.buttonGroupVertical, "TOPLEFT", 
-                                        button == buttonHorizontal and Addon.BUTTON_SIZE * index or 0, 
-                                        button == buttonHorizontal and 0 or Addon.BUTTON_SIZE - Addon.BUTTON_SIZE * index)
-                        button:SetSize(Addon.BUTTON_SIZE, Addon.BUTTON_SIZE)
-                        button.itemName = itemName
-                        button.category = category
-
-                        -- Set up the macro
-                        local macroText = "/use " .. itemName
-                        if category == "mainHandEnchants" then
-                            macroText = macroText .. "\n/use 16"
-                        elseif category == "offHandEnchants" then
-                            macroText = macroText .. "\n/use 17"
-                        end
-                        button:SetAttribute("type", "macro")
-                        button:SetAttribute("macrotext", macroText)
-
-                        -- Set the icon
-                        local _, _, _, _, _, _, _, _, _, itemTexture = C_Item.GetItemInfo(itemName)
-                        if itemTexture then
-                            button:SetNormalTexture(itemTexture)
-                        end
-                        
-                        -- Create the font string for the button
-                        local buttonText = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")
-                        button.timeText = buttonText
-
-                        -- Set the text placement
-                        if textPlacement == "Above" then
-                            buttonText:SetPoint("CENTER", button, "CENTER", 0, Addon.BUTTON_SIZE)
-                        elseif textPlacement == "Below" then
-                            buttonText:SetPoint("CENTER", button, "CENTER", 0, - Addon.BUTTON_SIZE)
-                        elseif textPlacement == "Left" then
-                            buttonText:SetPoint("CENTER", button, "CENTER", - Addon.BUTTON_SIZE, 0)
-                        elseif textPlacement == "Right" then
-                            buttonText:SetPoint("CENTER", button, "CENTER", Addon.BUTTON_SIZE, 0)
-                        end
-
-                        if itemName ~= "Supercharged Chronoboon Displacer" then  -- Skip for Chronoboon
-                            local _, _, remainingDuration = isConsumableActive(itemName, category)
-                            local formattedTime = FormatRemainingTime(remainingDuration)
-                            buttonText:SetText(formattedTime)
-                        end 
-                    end
-
-                    -- Store both buttons in their respective arrays
-                    table.insert(Addon.horizontalButtons, { button = buttonHorizontal, itemName = itemName, category = category, index = index }) 
-                    table.insert(Addon.verticalButtons, { button = buttonVertical, itemName = itemName, category = category, index = index })
-
-                    index = index + 1
-                end
-            end
-        end
-    end
-end]]--
 
 function updateButton(itemName, category, index)
     local vertical = Addon.LeifConsumesDB.isVerticalMode
