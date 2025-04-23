@@ -1,6 +1,15 @@
 local LeifConsumes, Addon = ...
 Addon = Addon or {}
 
+-- Cache frequently used API functions
+local GetTime = GetTime
+local GetItemCount = GetItemCount
+local UnitAura = UnitAura
+local CreateFrame = CreateFrame
+local GetWeaponEnchantInfo = GetWeaponEnchantInfo
+local IsInRaid = IsInRaid
+local C_Timer = C_Timer
+
 -- Create a frame to handle the ADDON_LOADED event
 local addonLoadedFrame = CreateFrame("Frame")
 addonLoadedFrame:RegisterEvent("ADDON_LOADED")
@@ -171,25 +180,34 @@ Addon.buttonGroupVerticalBg:SetAllPoints(Addon.buttonGroupVertical)
 Addon.buttonGroupVerticalBg:SetColorTexture(0, 0, 0, 0)
 
 
+-- Time formatting cache
+local timeCache = {}
 local function FormatRemainingTime(remainingDuration)
-    if not remainingDuration or type(remainingDuration) ~= "number" then
-        return ""
+    if not remainingDuration then return "" end
+    
+    local cacheKey = math.floor(remainingDuration)
+    if timeCache[cacheKey] then
+        return timeCache[cacheKey]
     end
-
+    
     local minutes = math.floor(remainingDuration / 60)
     local seconds = math.floor(remainingDuration % 60)
-
-    if minutes >= 5 then  -- Check if it's more than 5 minutes
-        return string.format("%d m", minutes)  -- Only display full minutes
+    
+    local formatted
+    if minutes >= 5 then
+        formatted = string.format("%d m", minutes)
     elseif minutes > 0 and seconds > 0 then
-        return string.format("%d m\n%d s", minutes, seconds)
+        formatted = string.format("%d m\n%d s", minutes, seconds)
     elseif minutes > 0 then
-        return string.format("%d m", minutes)
+        formatted = string.format("%d m", minutes)
     elseif seconds > 0 then
-        return string.format("%d s", seconds)
+        formatted = string.format("%d s", seconds)
     else
-        return ""
+        formatted = ""
     end
+    
+    timeCache[cacheKey] = formatted
+    return formatted
 end
 
 local function isConsumableActive(itemName, category, horizontalButton, verticalButton)
@@ -266,6 +284,11 @@ end
 
 
 local function updateButtonVisibility(horizontalButton, verticalButton)
+    -- Early return if button hasn't changed
+    if not horizontalButton.isDirty then
+        return horizontalButton.cachedDuration
+    end
+
     local itemName = horizontalButton.itemName
     local category = horizontalButton.category
     local foodAndSpecialConsumables = Addon.foodAndSpecialConsumables
@@ -349,8 +372,22 @@ local function updateButtonVisibility(horizontalButton, verticalButton)
             verticalButton:Hide()
         end
     end
+
+    -- Cache the results
+    horizontalButton.isDirty = false
+    horizontalButton.cachedDuration = remainingDuration
     return remainingDuration
 end
+
+-- Add this function to mark buttons as needing updates
+local function MarkButtonsDirty()
+    for _, buttonData in ipairs(Addon.horizontalButtons) do
+        buttonData.button.isDirty = true
+    end
+end
+
+-- Call this when something changes that affects all buttons
+C_Timer.NewTicker(1.0, MarkButtonsDirty)
 
 function updateButton(itemName, category, index)
     local vertical = Addon.LeifConsumesDB.isVerticalMode
@@ -765,7 +802,7 @@ SlashCmdList["LEIF"] = function(msg)
         UpdateScaleValueText(value)
 
         -- Update button sizes and positions
-        Addon.BUTTON_SIZE = 32 * Addon.LeifConsumesDB.scale -- Recalculate button size
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddon.BUTTON_SIZE = 32 * Addon.LeifConsumesDB.scale -- Recalculate button size
 
         for i, buttonData in ipairs(Addon.horizontalButtons) do
             local button = buttonData.button
@@ -912,6 +949,7 @@ end
 
 C_Timer.After(1.5, RestoreWrapperPosition) -- Wait for the game to load
 
+-- Move CheckRaidStatus function definition before it's used
 local function CheckRaidStatus()
     local IsInRaid = IsInRaid()
 
@@ -921,17 +959,14 @@ local function CheckRaidStatus()
         local category = buttonData.category
 
         if Addon.LeifConsumesDB.isRaidOnly and not IsInRaid and not Addon.areLeifEditBoxesVisible then
-            -- print("If buttonGroupHorizontal")
             button:Hide()
             Addon.buttonGroupHorizontal:Hide()
             Addon.buttonGroupVertical:Hide()
         elseif not Addon.LeifConsumesDB.isVerticalMode then
-            -- print("Elif 1 buttonGroupHorizontal")
             updateButtonVisibility(button, Addon.verticalButtons[buttonData.index].button)  
             Addon.buttonGroupHorizontal:Show()
             Addon.buttonGroupVertical:Hide()
         else
-            -- print("Else buttonGroupHorizontal")
             button:Hide()
             Addon.buttonGroupHorizontal:Hide()
             Addon.buttonGroupVertical:Show()
@@ -944,18 +979,14 @@ local function CheckRaidStatus()
         local category = buttonData.category
 
         if Addon.LeifConsumesDB.isRaidOnly and not IsInRaid and not Addon.areLeifEditBoxesVisible then
-            -- print("If buttonGroupVertical")
             button:Hide()
             Addon.buttonGroupHorizontal:Hide()
             Addon.buttonGroupVertical:Hide()
         elseif Addon.LeifConsumesDB.isVerticalMode then
-            -- Call updateButtonVisibility here'
-            -- print("Elif 1 buttonGroupVertical")
             updateButtonVisibility(button, Addon.verticalButtons[buttonData.index].button)  
             Addon.buttonGroupHorizontal:Hide()
             Addon.buttonGroupVertical:Show()
         else
-            -- print("Else buttonGroupVertical")
             button:Hide()
             Addon.buttonGroupHorizontal:Show()
             Addon.buttonGroupVertical:Hide()
@@ -963,27 +994,33 @@ local function CheckRaidStatus()
     end
 end
 
-local function StatusUpdate()
+-- Split updates into critical and non-critical
+local function UpdateCritical()
     for _, buttonData in ipairs(Addon.horizontalButtons) do
         local horizontalButton = buttonData.button
         local verticalButton = Addon.verticalButtons[buttonData.index].button
         local itemName = horizontalButton.itemName
 
-        -- Call updateButtonVisibility with the correct button arguments
-        local remainingDuration = updateButtonVisibility(horizontalButton, verticalButton)
-
-        local formattedTime = FormatRemainingTime(remainingDuration)
-
-        if formattedTime and itemName ~= "Supercharged Chronoboon Displacer" then  -- Skip for Chronoboon
-            buttonData.button.timeText:SetText(formattedTime)
-        else
-            -- print("Chronoboon", formattedTime)
+        -- Only update time-sensitive elements
+        if itemName ~= "Supercharged Chronoboon Displacer" then
+            local remainingDuration = updateButtonVisibility(horizontalButton, verticalButton)
+            local formattedTime = FormatRemainingTime(remainingDuration)
+            if formattedTime then
+                buttonData.button.timeText:SetText(formattedTime)
+            end
         end
+    end
+end
 
-        -- Get the item count and update the button text
+local function UpdateNonCritical()
+    for _, buttonData in ipairs(Addon.horizontalButtons) do
+        local horizontalButton = buttonData.button
+        local verticalButton = Addon.verticalButtons[buttonData.index].button
+        local itemName = horizontalButton.itemName
+
+        -- Update non-time-sensitive elements
         if itemName ~= "Supercharged Chronoboon Displacer" then
             local itemCount = GetItemCount(itemName)
-
             if itemCount > 0 then
                 horizontalButton.countText:SetText(itemCount)
                 verticalButton.countText:SetText(itemCount)
@@ -996,7 +1033,9 @@ local function StatusUpdate()
     CheckRaidStatus()
 end
 
-C_Timer.NewTicker(0.5, StatusUpdate)
+-- Replace your existing timer with these two
+C_Timer.NewTicker(0.5, UpdateCritical)
+C_Timer.NewTicker(1.0, UpdateNonCritical)
 
 
 local logoutFrame = CreateFrame("Frame") 
@@ -1011,3 +1050,20 @@ end)
         addonLoadedFrame:UnregisterEvent("ADDON_LOADED") 
     end
 end)
+
+-- Then define OnPlayerStateChanged after CheckRaidStatus is defined
+local function OnPlayerStateChanged(self, event, ...)
+    if event == "PLAYER_LOGOUT" then
+        LeifConsumesDB = Addon.LeifConsumesDB
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "GROUP_ROSTER_UPDATE" then
+        CheckRaidStatus()
+        MarkButtonsDirty()
+    end
+end
+
+-- Register events after functions are defined
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_LOGOUT")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+eventFrame:SetScript("OnEvent", OnPlayerStateChanged)
