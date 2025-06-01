@@ -1,6 +1,23 @@
 local LeifConsumes, Addon = ...
 Addon = Addon or {}
 
+-- At the top of your file, add an initialization flag
+Addon.initialized = false
+
+-- Create a queue for events that occur before initialization
+Addon.eventQueue = {}
+
+-- Create the main event frame early
+local eventFrame = CreateFrame("Frame")
+
+-- Function to process queued events
+local function ProcessEventQueue()
+    for _, event in ipairs(Addon.eventQueue) do
+        OnPlayerStateChanged(eventFrame, event)
+    end
+    Addon.eventQueue = {}
+end
+
 -- Cache frequently used API functions
 local GetTime = GetTime
 local GetItemCount = GetItemCount
@@ -28,6 +45,7 @@ addonLoadedFrame:SetScript("OnEvent", function(self, event, addonName)
             isRaidOnly = false,
             textPlacement = "Above",
             isHideIgnore = false,
+            countFeastAsFood = false,
             scale = 1
         }
 
@@ -77,13 +95,19 @@ Addon.foodAndSpecialConsumables = {
     ["Supercharged Chronoboon Displacer"] = 349981,
 
     -- Food
-    ["Dragonbreath Chili"] = 15851, -- Dragon Breaths
+    ["Dragonbreath Chili"] = 15852, -- Dragon Breaths
     ["Grilled Squid"] = 18192,  -- Agility
     ["Nightfin Soup"] = 18194, -- Mp5
     ["Runn Tum Tuber Surprise"] = 22730, -- Intellect
     ["Smoked Desert Dumplings"] = 24799, -- Strength
     ["Darkclaw Bisque"] = 470361,
     ["Smoked Redgill"] = 470367,
+    ["Prowler Steak"] = 1225778,
+    ["Sunrise Omelette"] = 1225780,
+    ["Filet o' Flank"] = 1225779,
+    ["Filet o Flank"] = 1225779,
+    ["Specklefin Feast"] = 1225782,
+    ["Grand Lobster Banquet"] = 1225782,
 
         -- Testing
     ["Dry Pork Ribs"] = 19706,
@@ -230,14 +254,30 @@ local function isConsumableActive(itemName, category, horizontalButton, vertical
             for i = 1, 40 do
                 local _, _, _, _, duration, expirationTime, _, _, _, auraSpellId = UnitAura("player", i)
                 
-                if auraSpellId and (auraSpellId == spellId or (string.lower(itemName) == "winterfall firewater" and auraSpellId == 473469)) then
+                -- Check for regular buff or Winterfall Firewater
+                if auraSpellId and (auraSpellId == spellId or 
+                    (string.lower(itemName) == "winterfall firewater" and auraSpellId == 473469)) then
                     totalDuration = duration
                     remainingDuration = expirationTime - GetTime()
-                    -- print("totalDuration in loop", itemName, totalDuration)
                     playerHasBuff = true
 
                     if Addon.LeifConsumesDB.lowDurationWarning and itemName ~= "Supercharged Chronoboon Displacer" then
+                        if remainingDuration <= totalDuration * 0.2 then
+                            currentButtonAlpha = 0.5
+                        elseif remainingDuration >= 1 then
+                            currentButtonAlpha = 0.7  
+                        else
+                            currentButtonAlpha = 1 
+                        end
+                    end
+                -- Separate check for feast buffs
+                elseif category == "food" and Addon.LeifConsumesDB.countFeastAsFood and auraSpellId == 1225782
+                then
+                    totalDuration = duration
+                    remainingDuration = expirationTime - GetTime()
+                    playerHasBuff = true
 
+                    if Addon.LeifConsumesDB.lowDurationWarning then
                         if remainingDuration <= totalDuration * 0.2 then
                             currentButtonAlpha = 0.5
                         elseif remainingDuration >= 1 then
@@ -612,7 +652,7 @@ SlashCmdList["LEIF"] = function(msg)
 
     -- Create the background frame
     local bgFrame = CreateFrame("Frame", nil, UIParent)
-    bgFrame:SetSize(300, 620)
+    bgFrame:SetSize(300, 800)
     bgFrame:SetPoint("CENTER")
 
     bgFrame:SetMovable(true)
@@ -770,6 +810,7 @@ SlashCmdList["LEIF"] = function(msg)
     CreateCheckbox(bgFrame, "TOPLEFT", -110, "Load in Raid Only", "isRaidOnly", "Only load the addon when you are in a raid group.")
     CreateCheckbox(bgFrame, "TOPLEFT", -80, "Low Duration Warning", "lowDurationWarning", "Show buttons with lower opacties when consumables have low remaining duration. Without this they are hidden as long as you have the buff.")
     CreateCheckbox(bgFrame, "TOPLEFT", -110, "Never fade", "isHideIgnore", "Buttons will now only fade out instead of hiding completely")
+    CreateCheckbox(bgFrame, "TOPLEFT", -140, "Count Feast as Food", "countFeastAsFood", "Count raid feasts as your selected food buff")
 
     -- Add the slider for scale
     local scaleSlider = CreateFrame("Slider", "LeifConsumesScaleSlider", bgFrame, "OptionsSliderTemplate")
@@ -832,7 +873,7 @@ SlashCmdList["LEIF"] = function(msg)
                 label:SetPoint("TOPLEFT", prevBox, "BOTTOMLEFT", 0, editBoxChild)
             end
         else
-            label:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, editBoxHeader - 125)  -- Adjust First Header (Elixirs)
+            label:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, editBoxHeader - 155)  -- Adjust First Header (Elixirs)
         end
 
         label:SetText(labelText)
@@ -857,6 +898,7 @@ SlashCmdList["LEIF"] = function(msg)
     prevBox = CreateEditBox(bgFrame, prevBox, "Elixirs", "elixirs", 1)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "elixirs", 2)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "elixirs", 3)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "elixirs", 4)
   
     -- Flask
     prevBox = CreateEditBox(bgFrame, prevBox, "Flask", "flask", 1)
@@ -867,6 +909,7 @@ SlashCmdList["LEIF"] = function(msg)
 
     -- Food
     prevBox = CreateEditBox(bgFrame, prevBox, "Food", "food", 1)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "food", 2)
   
     -- Other
     prevBox = CreateEditBox(bgFrame, prevBox, "Other", "other", 1)
@@ -875,6 +918,9 @@ SlashCmdList["LEIF"] = function(msg)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 4)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 5)
     prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 6)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 7)
+    prevBox = CreateEditBox(bgFrame, prevBox, "", "other", 8)
+    
 
     local function AcceptInput()
         local categoryIndices = {
@@ -1053,6 +1099,12 @@ end)
 
 -- Then define OnPlayerStateChanged after CheckRaidStatus is defined
 local function OnPlayerStateChanged(self, event, ...)
+    if not Addon.initialized then
+        -- Queue events that occur before initialization
+        table.insert(Addon.eventQueue, event)
+        return
+    end
+
     if event == "PLAYER_LOGOUT" then
         LeifConsumesDB = Addon.LeifConsumesDB
     elseif event == "PLAYER_ENTERING_WORLD" or event == "GROUP_ROSTER_UPDATE" then
@@ -1062,7 +1114,6 @@ local function OnPlayerStateChanged(self, event, ...)
 end
 
 -- Register events after functions are defined
-local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
