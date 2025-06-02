@@ -843,7 +843,7 @@ SlashCmdList["LEIF"] = function(msg)
         UpdateScaleValueText(value)
 
         -- Update button sizes and positions
-        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddon.BUTTON_SIZE = 32 * Addon.LeifConsumesDB.scale -- Recalculate button size
+        Addon.BUTTON_SIZE = 32 * Addon.LeifConsumesDB.scale -- Recalculate button size
 
         for i, buttonData in ipairs(Addon.horizontalButtons) do
             local button = buttonData.button
